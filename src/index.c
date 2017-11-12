@@ -516,6 +516,8 @@ static int index_remove_entry(git_index *index, size_t pos)
 		} else {
 			index_entry_free(entry);
 		}
+
+		index->dirty = 1;
 	}
 
 	return error;
@@ -527,6 +529,7 @@ int git_index_clear(git_index *index)
 
 	assert(index);
 
+	index->dirty = 1;
 	index->tree = NULL;
 	git_pool_clear(&index->tree_pool);
 
@@ -637,8 +640,10 @@ int git_index_read(git_index *index, int force)
 	index->on_disk = git_path_exists(index->index_file_path);
 
 	if (!index->on_disk) {
-		if (force)
-			return git_index_clear(index);
+		if ((error = git_index_clear(index)) < 0)
+			return error;
+
+		index->dirty = 0;
 		return 0;
 	}
 
@@ -650,6 +655,7 @@ int git_index_read(git_index *index, int force)
 			index->index_file_path);
 		return updated;
 	}
+
 	if (!updated && !force)
 		return 0;
 
@@ -667,6 +673,9 @@ int git_index_read(git_index *index, int force)
 
 	if (!error)
 		git_futils_filestamp_set(&index->stamp, &stamp);
+
+	if (!error)
+		index->dirty = 0;
 
 	git_buf_free(&buffer);
 	return error;
@@ -735,8 +744,10 @@ static int truncate_racily_clean(git_index *index)
 		/* Ensure that we have a stage 0 for this file (ie, it's not a
 		 * conflict), otherwise smudging it is quite pointless.
 		 */
-		if (entry)
+		if (entry) {
 			entry->file_size = 0;
+			index->dirty = 1;
+		}
 	}
 
 done:
@@ -774,8 +785,9 @@ int git_index_write(git_index *index)
 
 	truncate_racily_clean(index);
 
-	if ((error = git_indexwriter_init(&writer, index)) == 0)
-		error = git_indexwriter_commit(&writer);
+	if ((error = git_indexwriter_init(&writer, index)) == 0 &&
+		(error = git_indexwriter_commit(&writer)) == 0)
+		index->dirty = 0;
 
 	git_indexwriter_cleanup(&writer);
 
@@ -1365,6 +1377,8 @@ static int index_insert(
 	if (error < 0) {
 		index_entry_free(*entry_ptr);
 		*entry_ptr = NULL;
+	} else {
+		index->dirty = 1;
 	}
 
 	return error;
@@ -1592,6 +1606,8 @@ int git_index__fill(git_index *index, const git_vector *source_entries)
 		INSERT_IN_MAP(index, entry, &ret);
 		if (ret < 0)
 			break;
+
+		index->dirty = 1;
 	}
 
 	if (!ret)
@@ -2029,6 +2045,7 @@ int git_index_name_add(git_index *index,
 		return -1;
 	}
 
+	index->dirty = 1;
 	return 0;
 }
 
@@ -2043,6 +2060,8 @@ void git_index_name_clear(git_index *index)
 		index_name_entry_free(conflict_name);
 
 	git_vector_clear(&index->names);
+
+	index->dirty = 1;
 }
 
 size_t git_index_reuc_entrycount(git_index *index)
@@ -2068,6 +2087,8 @@ static int index_reuc_insert(
 	assert(git_vector_is_sorted(&index->reuc));
 
 	res = git_vector_insert_sorted(&index->reuc, reuc, &index_reuc_on_dup);
+	index->dirty = 1;
+
 	return res == GIT_EEXISTS ? 0 : res;
 }
 
@@ -2133,6 +2154,7 @@ int git_index_reuc_remove(git_index *index, size_t position)
 	if (!error)
 		index_entry_reuc_free(reuc);
 
+	index->dirty = 1;
 	return error;
 }
 
@@ -2146,6 +2168,8 @@ void git_index_reuc_clear(git_index *index)
 		index_entry_reuc_free(git__swap(index->reuc.contents[i], NULL));
 
 	git_vector_clear(&index->reuc);
+
+	index->dirty = 1;
 }
 
 static int index_error_invalid(const char *message)
@@ -2571,6 +2595,7 @@ static int parse_index(git_index *index, const char *buffer, size_t buffer_size)
 	git_vector_set_sorted(&index->entries, !index->ignore_case);
 	git_vector_sort(&index->entries);
 
+	index->dirty = 0;
 done:
 	return error;
 }
@@ -3037,6 +3062,8 @@ int git_index_read_tree(git_index *index, const git_tree *tree)
 		entries_map = git__swap(index->entries_map, entries_map);
 	}
 
+	index->dirty = 1;
+
 cleanup:
 	git_vector_free(&entries);
 	git_idxmap_free(entries_map);
@@ -3176,6 +3203,7 @@ static int git_index_read_iterator(
 
 	clear_uptodate(index);
 
+	index->dirty = 0;
 	error = 0;
 
 done:
