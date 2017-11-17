@@ -276,6 +276,7 @@ void test_cherrypick_workdir__conflict_use_ours(void)
 	opts.merge_opts.file_favor = GIT_MERGE_FILE_FAVOR_OURS;
 
 	cl_git_pass(git_reset(repo, (git_object *)head, GIT_RESET_HARD, NULL));
+
 	cl_git_pass(git_cherrypick(repo, commit, &opts));
 
 	cl_assert(merge_test_index(repo_index, merge_filesystem_entries, 3));

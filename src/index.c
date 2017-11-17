@@ -681,6 +681,17 @@ int git_index_read(git_index *index, int force)
 	return error;
 }
 
+int git_index_read_safely(git_index *index)
+{
+	if (index->dirty) {
+		giterr_set(GITERR_INDEX,
+			"the index has unsaved changes that would be overwritten by this operation");
+		return -1;
+	}
+
+	return git_index_read(index, false);
+}
+
 int git_index__changed_relative_to(
 	git_index *index, const git_oid *checksum)
 {
@@ -3596,6 +3607,7 @@ int git_indexwriter_commit(git_indexwriter *writer)
 		return -1;
 	}
 
+	writer->index->dirty = 0;
 	writer->index->on_disk = 1;
 	git_oid_cpy(&writer->index->checksum, &checksum);
 

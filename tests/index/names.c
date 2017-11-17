@@ -65,6 +65,7 @@ void test_index_names__add(void)
 {
 	const git_index_name_entry *conflict_name;
 
+	index_add_main();
 	cl_git_pass(git_index_name_add(repo_index, "ancestor", "ours", "theirs"));
 	cl_git_pass(git_index_name_add(repo_index, "ancestor2", "ours2", NULL));
 	cl_git_pass(git_index_name_add(repo_index, "ancestor3", NULL, "theirs3"));
@@ -85,6 +86,8 @@ void test_index_names__add(void)
 	cl_assert(strcmp(conflict_name->ancestor, "ancestor3") == 0);
 	cl_assert(conflict_name->ours == NULL);
 	cl_assert(strcmp(conflict_name->theirs, "theirs3") == 0);
+
+	cl_git_pass(git_index_write(repo_index));
 }
 
 void test_index_names__roundtrip(void)
@@ -150,12 +153,12 @@ void test_index_names__cleaned_on_checkout_tree(void)
 	git_object *obj;
 	git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
 
-	opts.checkout_strategy = GIT_CHECKOUT_SAFE | GIT_CHECKOUT_UPDATE_ONLY;
+	opts.checkout_strategy = GIT_CHECKOUT_FORCE | GIT_CHECKOUT_UPDATE_ONLY;
 
 	test_index_names__add();
-	git_reference_name_to_id(&oid, repo, "refs/heads/master");
-	git_object_lookup(&obj, repo, &oid, GIT_OBJ_ANY);
-	git_checkout_tree(repo, obj, &opts);
+	cl_git_pass(git_reference_name_to_id(&oid, repo, "refs/heads/master"));
+	cl_git_pass(git_object_lookup(&obj, repo, &oid, GIT_OBJ_ANY));
+	cl_git_pass(git_checkout_tree(repo, obj, &opts));
 	cl_assert_equal_sz(0, git_index_name_entrycount(repo_index));
 
 	git_object_free(obj);
@@ -165,10 +168,10 @@ void test_index_names__cleaned_on_checkout_head(void)
 {
 	git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
 
-	opts.checkout_strategy = GIT_CHECKOUT_SAFE | GIT_CHECKOUT_UPDATE_ONLY;
+	opts.checkout_strategy = GIT_CHECKOUT_FORCE | GIT_CHECKOUT_UPDATE_ONLY;
 
 	test_index_names__add();
-	git_checkout_head(repo, &opts);
+	cl_git_pass(git_checkout_head(repo, &opts));
 	cl_assert_equal_sz(0, git_index_name_entrycount(repo_index));
 }
 
@@ -176,9 +179,9 @@ void test_index_names__retained_on_checkout_index(void)
 {
 	git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
 
-	opts.checkout_strategy = GIT_CHECKOUT_SAFE | GIT_CHECKOUT_UPDATE_ONLY;
+	opts.checkout_strategy = GIT_CHECKOUT_FORCE | GIT_CHECKOUT_UPDATE_ONLY;
 
 	test_index_names__add();
-	git_checkout_index(repo, repo_index, &opts);
+	cl_git_pass(git_checkout_index(repo, repo_index, &opts));
 	cl_assert(git_index_name_entrycount(repo_index) > 0);
 }
