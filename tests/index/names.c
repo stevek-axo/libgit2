@@ -25,6 +25,42 @@ void test_index_names__cleanup(void)
 	cl_git_sandbox_cleanup();
 }
 
+static void index_add_main(void)
+{
+	git_index_entry entry = {{0}};
+	const char *paths[][3] = {
+		{ "ancestor", "ours", "theirs" },
+		{ "ancestor2", "ours2", "theirs2" },
+		{ "ancestor3", "ours3", "theirs3" } };
+	const char **conflict;
+	size_t i;
+
+	for (i = 0; i < 3; i++) {
+		conflict = paths[i];
+
+		/* ancestor */
+		entry.path = conflict[0];
+		entry.mode = GIT_FILEMODE_BLOB;
+		GIT_IDXENTRY_STAGE_SET(&entry, GIT_INDEX_STAGE_ANCESTOR);
+		git_oid_fromstr(&entry.id, "1f85ca51b8e0aac893a621b61a9c2661d6aa6d81");
+		cl_git_pass(git_index_add(repo_index, &entry));
+
+		/* ours */
+		entry.path = conflict[1];
+		entry.mode = GIT_FILEMODE_BLOB;
+		GIT_IDXENTRY_STAGE_SET(&entry, GIT_INDEX_STAGE_OURS);
+		git_oid_fromstr(&entry.id, "1f85ca51b8e0aac893a621b61a9c2661d6aa6d81");
+		cl_git_pass(git_index_add(repo_index, &entry));
+
+		/* theirs */
+		entry.path = conflict[2];
+		entry.mode = GIT_FILEMODE_BLOB;
+		GIT_IDXENTRY_STAGE_SET(&entry, GIT_INDEX_STAGE_THEIRS);
+		git_oid_fromstr(&entry.id, "1f85ca51b8e0aac893a621b61a9c2661d6aa6d81");
+		cl_git_pass(git_index_add(repo_index, &entry));
+	}
+}
+
 void test_index_names__add(void)
 {
 	const git_index_name_entry *conflict_name;
