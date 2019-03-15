@@ -1182,3 +1182,91 @@ void test_status_ignore__deeper(void)
     cl_git_pass(git_ignore_path_is_ignored(&ignored, g_repo, "dont_ignore/bar.data"));
     cl_assert_equal_i(0, ignored);
 }
+
+void test_status_ignore__ignored_subdirfiles_with_subdir_rule1(void)
+{
+	static const char *test_files[] = {
+    "empty_standard_repo/dir/a.test",
+		"empty_standard_repo/dir/sub1/sub2/b.test",
+		NULL
+	};
+
+ 	make_test_data("empty_standard_repo", test_files);
+	cl_git_mkfile(
+		"empty_standard_repo/.gitignore",
+		"dir/*\n"
+		"!dir/sub1/sub2/**\n");
+
+	assert_is_ignored("dir/a.test");
+}
+
+void test_status_ignore__ignored_subdirfiles_with_subdir_rule2(void)
+{
+	static const char *test_files[] = {
+    "empty_standard_repo/dir/a.test",
+		"empty_standard_repo/dir/sub1/sub2/b.test",
+		NULL
+	};
+
+ 	make_test_data("empty_standard_repo", test_files);
+	cl_git_mkfile(
+		"empty_standard_repo/.gitignore",
+		"dir/*\n"
+		"!dir/sub1/sub2/**\n");
+
+	assert_is_ignored("dir/sub1/a.test");
+}
+
+void test_status_ignore__ignored_subdirfiles_with_subdir_rule3(void)
+{
+	static const char *test_files[] = {
+    "empty_standard_repo/dir/a.test",
+		"empty_standard_repo/dir/sub1/sub2/b.test",
+		NULL
+	};
+
+ 	make_test_data("empty_standard_repo", test_files);
+	cl_git_mkfile(
+		"empty_standard_repo/.gitignore",
+		"dir/*\n"
+		"!dir/sub1/sub2/**\n");
+
+	assert_is_ignored("dir/sub1/sub2");
+}
+
+void test_status_ignore__ignored_subdirfiles_with_subdir_rule4(void)
+{
+	static const char *test_files[] = {
+    "empty_standard_repo/dir/a.test",
+		"empty_standard_repo/dir/sub1/sub2/b.test",
+		NULL
+	};
+
+ 	make_test_data("empty_standard_repo", test_files);
+	cl_git_mkfile(
+		"empty_standard_repo/.gitignore",
+		"dir/*\n"
+		"!dir/sub1/sub2/**\n");
+
+	assert_is_ignored("dir/sub1/sub2/b.test");
+}
+
+void test_status_ignore__ignored_subdirfiles_with_negations(void)
+{
+	static const char *test_files[] = {
+    "empty_standard_repo/dir/a.test",
+		"empty_standard_repo/dir/b.test",
+		"empty_standard_repo/dir/sub1/c.test",
+		NULL
+	};
+
+ 	make_test_data("empty_standard_repo", test_files);
+	cl_git_mkfile(
+		"empty_standard_repo/.gitignore",
+		"dir/*\n"
+		"!dir/a.test\n");
+
+ 	refute_is_ignored("dir/a.test");
+	assert_is_ignored("dir/b.test");
+	assert_is_ignored("dir/sub1/c.test");
+}
